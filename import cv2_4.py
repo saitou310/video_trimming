@@ -1,3 +1,5 @@
+# pip install opencv-python opencv-python-headless scikit-learn matplotlib
+# pip install librosa
 import cv2
 import numpy as np
 import librosa
