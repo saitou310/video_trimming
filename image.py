@@ -1,7 +1,6 @@
 import cv2
 import sys
 import os
-from datetime import datetime
 
 def extract_frame_from_video(video_path, time_in_seconds, output_image_path):
     """
@@ -44,15 +43,16 @@ def generate_default_image_name(video_path, time_in_seconds):
     :param time_in_seconds: 取得したい時間（秒）
     :return: デフォルトの画像ファイル名
     """
-    # 動画のファイル名を取得
+    # 動画のディレクトリとファイル名を取得
+    dir_name = os.path.dirname(video_path)
     base_name = os.path.basename(video_path)
     name, _ = os.path.splitext(base_name)
 
-    # 現在の日時を取得
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # ファイル名を生成
-    return f"{name}_{timestamp}_{int(time_in_seconds)}s.jpg"
+    # デフォルトの画像ファイル名を生成
+    output_name = f"{name}_{int(time_in_seconds)}s.jpg"
+    
+    # 動画と同じディレクトリに画像を保存
+    return os.path.join(dir_name, output_name)
 
 if __name__ == "__main__":
     # 引数を取得
