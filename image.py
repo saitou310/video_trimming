@@ -1,5 +1,7 @@
 import cv2
 import sys
+import os
+from datetime import datetime
 
 def extract_frame_from_video(video_path, time_in_seconds, output_image_path):
     """
@@ -34,16 +36,33 @@ def extract_frame_from_video(video_path, time_in_seconds, output_image_path):
     # 動画を閉じる
     video.release()
 
+def generate_default_image_name(video_path, time_in_seconds):
+    """
+    出力画像のデフォルトファイル名を生成する関数
+
+    :param video_path: 動画ファイルのパス
+    :param time_in_seconds: 取得したい時間（秒）
+    :return: デフォルトの画像ファイル名
+    """
+    # 動画のファイル名を取得
+    base_name = os.path.basename(video_path)
+    name, _ = os.path.splitext(base_name)
+
+    # 現在の日時を取得
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # ファイル名を生成
+    return f"{name}_{timestamp}_{int(time_in_seconds)}s.jpg"
+
 if __name__ == "__main__":
-    # 引数が3つあるか確認
-    if len(sys.argv) != 4:
-        print("使用方法: python script_name.py <動画ファイルパス> <秒数> <出力画像パス>")
+    # 引数を取得
+    video_path = sys.argv[1] if len(sys.argv) > 1 else None
+    if not video_path:
+        print("動画ファイルのパスを指定してください。")
         sys.exit(1)
 
-    # コマンドライン引数を取得
-    video_path = sys.argv[1]
-    time_in_seconds = float(sys.argv[2])  # 秒数を浮動小数点数に変換
-    output_image_path = sys.argv[3]
+    time_in_seconds = float(sys.argv[2]) if len(sys.argv) > 2 else 5.0
+    output_image_path = sys.argv[3] if len(sys.argv) > 3 else generate_default_image_name(video_path, time_in_seconds)
 
     # フレーム抽出を実行
     extract_frame_from_video(video_path, time_in_seconds, output_image_path)
