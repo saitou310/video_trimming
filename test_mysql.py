@@ -2,19 +2,27 @@ import requests
 import mysql.connector
 from mysql.connector import Error
 
-def fetch_jenkins_jobs(base_url, job_name, username, api_token):
-    """Jenkins APIを利用してジョブの履歴を取得"""
-    url = f"{base_url}/job/{job_name}/api/json?tree=builds[number,status,timestamp,duration,result]"
-    try:
-        response = requests.get(url, auth=(username, api_token))
-        response.raise_for_status()
-        return response.json().get('builds', [])
-    except requests.exceptions.RequestException as e:
-        print(f"Jenkins APIリクエストエラー: {e}")
-        return []
+def fetch_jenkins_builds(base_url, job_name, username, api_token):
+    """Jenkins APIを利用してビルド履歴を取得"""
+    builds = []
+    start = 0
+    while True:
+        url = f"{base_url}/job/{job_name}/api/json?tree=builds[number,status,timestamp,duration,result]&start={start}"
+        try:
+            response = requests.get(url, auth=(username, api_token))
+            response.raise_for_status()
+            data = response.json().get('builds', [])
+            if not data:
+                break  # データが空の場合、すべて取得完了
+            builds.extend(data)
+            start += len(data)  # 次の開始位置を設定
+        except requests.exceptions.RequestException as e:
+            print(f"Jenkins APIリクエストエラー: {e}")
+            break
+    return builds
 
 def save_to_mysql(db_config, job_name, builds):
-    """MySQLにジョブ履歴を保存"""
+    """MySQLにビルド履歴を挿入または更新"""
     try:
         # MySQLに接続
         connection = mysql.connector.connect(
@@ -33,7 +41,7 @@ def save_to_mysql(db_config, job_name, builds):
             timestamp BIGINT,
             duration BIGINT,
             result VARCHAR(50)
-        )
+        );
         """
         cursor.execute(create_table_query)
 
@@ -45,7 +53,7 @@ def save_to_mysql(db_config, job_name, builds):
         status = VALUES(status),
         timestamp = VALUES(timestamp),
         duration = VALUES(duration),
-        result = VALUES(result)
+        result = VALUES(result);
         """
         for build in builds:
             data = (
@@ -58,7 +66,7 @@ def save_to_mysql(db_config, job_name, builds):
             cursor.execute(insert_query, data)
 
         connection.commit()
-        print(f"{len(builds)}件のジョブ履歴を保存しました。")
+        print(f"{len(builds)}件のビルド履歴を保存または更新しました。")
     except Error as e:
         print(f"MySQLエラー: {e}")
     finally:
@@ -81,11 +89,11 @@ if __name__ == "__main__":
         "database": "your_database"
     }
 
-    # Jenkinsジョブ履歴を取得
-    builds = fetch_jenkins_jobs(jenkins_base_url, job_name, username, api_token)
+    # Jenkinsビルド履歴を取得
+    builds = fetch_jenkins_builds(jenkins_base_url, job_name, username, api_token)
 
     if builds:
         # データをMySQLに保存
         save_to_mysql(db_config, job_name, builds)
     else:
-        print("ジョブ履歴が見つかりませんでした。")
+        print("ビルド履歴が見つかりませんでした。")
