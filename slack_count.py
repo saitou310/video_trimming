@@ -53,11 +53,19 @@ def store_messages_in_db(messages):
 
         # Insert messages into the table
         for message in messages:
+            # メッセージIDがない場合、タイムスタンプを代わりに使用
+            message_id = message.get('client_msg_id') or f"system_{message['ts']}"
+            
+            # メッセージの詳細を取得
+            user = message.get('user', 'system')  # メッセージがボットやシステムの場合は 'system'
+            text = message.get('text', '')  # テキストがない場合は空文字を設定
+
+            # データベースに保存
             cursor.execute("""
                 INSERT INTO messages (id, user, text, ts) 
                 VALUES (%s, %s, %s, FROM_UNIXTIME(%s))
                 ON DUPLICATE KEY UPDATE text = VALUES(text)
-            """, (message['client_msg_id'], message.get('user', 'bot'), message['text'], float(message['ts'])))
+            """, (message_id, user, text, float(message['ts'])))
 
         connection.commit()
     except mysql.connector.Error as e:
