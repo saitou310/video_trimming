@@ -23,14 +23,26 @@ end_time = start_time + timedelta(days=1) - timedelta(seconds=1)  # 翌日の朝
 def parse_timestamp(ts: str) -> datetime:
     return datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f%z")
 
+# 日時データの所属日付を計算 (朝10時を境界として前日を割り当てる)
+def get_adjusted_date(ts: datetime, boundary_hour=10) -> str:
+    # タイムゾーンを考慮したローカル日時
+    local_time = ts.astimezone(jst)
+    if local_time.hour < boundary_hour:
+        # 朝10時前は前日として扱う
+        adjusted_date = local_time.date() - timedelta(days=1)
+    else:
+        # 朝10時以降はその日として扱う
+        adjusted_date = local_time.date()
+    return adjusted_date.strftime("%Y-%m-%d")
+
 # 指定期間内のデータを日付単位で集計
 daily_data = defaultdict(list)  # 日付ごとにデータを格納する辞書
 
 for ts in timestamps:
     dt = parse_timestamp(ts)
     if start_time <= dt < end_time:
-        # 日付単位のキーを作成 (JST基準)
-        date_key = dt.astimezone(jst).strftime("%Y-%m-%d")
+        # 調整後の日付キーを取得
+        date_key = get_adjusted_date(dt)
         daily_data[date_key].append(ts)
 
 # 結果を表示
