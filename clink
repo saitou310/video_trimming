@@ -1,0 +1,14 @@
+import os
+import winshell
+from win32com.client import Dispatch
+
+def create_shortcut(target, shortcut_path):
+    shell = Dispatch('WScript.Shell')
+    shortcut = shell.CreateShortcut(shortcut_path)
+    shortcut.TargetPath = target
+    shortcut.Save()
+
+source_dir = r"\\server\backup\source"
+shortcut_path = os.path.join(source_dir, "backup_link.lnk")
+create_shortcut(source_dir, shortcut_path)
+print(f"ショートカット {shortcut_path} を作成しました")
