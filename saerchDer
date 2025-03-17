@@ -1,0 +1,27 @@
+import os
+import glob
+import shutil
+
+# ディレクトリのパス
+dir1_pattern = "//aaa/*/test-*"
+dir2_base = "//bbb"
+
+# ディレクトリ1のリストを取得（//aaa/***/test-XXX）
+dir1_list = glob.glob(dir1_pattern)
+
+# test-XXX の名前を取得
+dir1_names = {os.path.basename(d) for d in dir1_list}
+
+# ディレクトリ2のリストを取得（//bbb/XXX）
+dir2_list = [os.path.join(dir2_base, d) for d in os.listdir(dir2_base) if os.path.isdir(os.path.join(dir2_base, d))]
+
+# 削除対象を特定
+to_delete = [d for d in dir2_list if os.path.basename(d) in dir1_names]
+
+# 削除処理
+for d in to_delete:
+    try:
+        shutil.rmtree(d)
+        print(f"Deleted: {d}")
+    except Exception as e:
+        print(f"Failed to delete {d}: {e}")
