@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 import json
 from pathlib import Path
 import shutil
+import concurrent.futures
 
 CONFIG_FILE = "search_config.json"
 
@@ -23,14 +24,26 @@ def search_in_json(json_path: Path, key: str, value: str) -> bool:
     except Exception:
         return False
 
-def find_matching_dirs(root_dir: Path, key: str, value: str):
+def is_matching_dir(subdir: Path, key: str, value: str, filename: str) -> str | None:
+    json_file = subdir / filename
+    if json_file.is_file():
+        if search_in_json(json_file, key, value):
+            return str(subdir.resolve())
+    return None
+
+def find_matching_dirs(root_dir: Path, key: str, value: str, filename: str):
     matched_dirs = []
-    for subdir in root_dir.iterdir():
-        if subdir.is_dir():
-            for json_file in subdir.glob('*.json'):
-                if search_in_json(json_file, key, value):
-                    matched_dirs.append(str(subdir.resolve()))
-                    break
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = []
+        for subdir in root_dir.iterdir():
+            if subdir.is_dir():
+                futures.append(executor.submit(is_matching_dir, subdir, key, value, filename))
+
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                matched_dirs.append(result)
+
     return matched_dirs
 
 def choose_directory():
@@ -42,12 +55,16 @@ def run_search():
     root_dir = Path(root_dir_var.get())
     key = key_entry.get()
     value = value_entry.get()
+    filename = filename_entry.get()
 
     if not root_dir.is_dir():
         messagebox.showerror("エラー", "有効なディレクトリを選んでください。")
         return
+    if not filename:
+        messagebox.showerror("エラー", "JSONファイル名を入力してください。")
+        return
 
-    matched = find_matching_dirs(root_dir, key, value)
+    matched = find_matching_dirs(root_dir, key, value, filename)
 
     result_list.delete(0, tk.END)
     for d in matched:
@@ -74,7 +91,8 @@ def save_state():
     state = {
         "root_dir": root_dir_var.get(),
         "key": key_entry.get(),
-        "value": value_entry.get()
+        "value": value_entry.get(),
+        "filename": filename_entry.get()
     }
     try:
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
@@ -90,6 +108,7 @@ def load_state():
                 root_dir_var.set(state.get("root_dir", ""))
                 key_entry.insert(0, state.get("key", ""))
                 value_entry.insert(0, state.get("value", ""))
+                filename_entry.insert(0, state.get("filename", "config.json"))
         except Exception as e:
             print("状態の読み込みに失敗:", e)
 
@@ -112,12 +131,16 @@ tk.Button(frame_input, text="参照", command=choose_directory).pack(side="left"
 frame_search = tk.Frame(root)
 frame_search.pack(padx=10, pady=5, fill="x")
 
+tk.Label(frame_search, text="ファイル名:").pack(side="left")
+filename_entry = tk.Entry(frame_search, width=20)
+filename_entry.pack(side="left", padx=5)
+
 tk.Label(frame_search, text="キー:").pack(side="left")
-key_entry = tk.Entry(frame_search, width=20)
+key_entry = tk.Entry(frame_search, width=15)
 key_entry.pack(side="left", padx=5)
 
 tk.Label(frame_search, text="値:").pack(side="left")
-value_entry = tk.Entry(frame_search, width=20)
+value_entry = tk.Entry(frame_search, width=15)
 value_entry.pack(side="left", padx=5)
 
 tk.Button(frame_search, text="検索", command=run_search).pack(side="left", padx=10)
@@ -136,5 +159,6 @@ frame_delete.pack(padx=10, pady=5, fill="x")
 
 tk.Button(frame_delete, text="選択したディレクトリを削除", command=delete_selected_dirs).pack(side="right")
 
+# 初期化
 load_state()
 root.mainloop()
