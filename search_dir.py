@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 import json
 from pathlib import Path
 import shutil
+import glob
 import concurrent.futures
 
 CONFIG_FILE = "search_config.json"
@@ -31,13 +32,16 @@ def is_matching_dir(subdir: Path, key: str, value: str, filename: str) -> str | 
             return str(subdir.resolve())
     return None
 
-def find_matching_dirs(root_dir: Path, key: str, value: str, filename: str):
+def find_matching_dirs(root_pattern: str, key: str, value: str, filename: str):
     matched_dirs = []
+
+    # ワイルドカードパターンでディレクトリを列挙
+    candidate_dirs = [Path(p) for p in glob.glob(root_pattern) if Path(p).is_dir()]
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = []
-        for subdir in root_dir.iterdir():
-            if subdir.is_dir():
-                futures.append(executor.submit(is_matching_dir, subdir, key, value, filename))
+        for subdir in candidate_dirs:
+            futures.append(executor.submit(is_matching_dir, subdir, key, value, filename))
 
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
@@ -52,19 +56,19 @@ def choose_directory():
         root_dir_var.set(dir_path)
 
 def run_search():
-    root_dir = Path(root_dir_var.get())
+    root_pattern = root_dir_var.get().strip()
     key = key_entry.get()
     value = value_entry.get()
     filename = filename_entry.get()
 
-    if not root_dir.is_dir():
-        messagebox.showerror("エラー", "有効なディレクトリを選んでください。")
+    if not root_pattern:
+        messagebox.showerror("エラー", "ディレクトリパターンを入力してください。")
         return
     if not filename:
         messagebox.showerror("エラー", "JSONファイル名を入力してください。")
         return
 
-    matched = find_matching_dirs(root_dir, key, value, filename)
+    matched = find_matching_dirs(root_pattern, key, value, filename)
 
     result_list.delete(0, tk.END)
     for d in matched:
@@ -124,7 +128,7 @@ root_dir_var = tk.StringVar()
 frame_input = tk.Frame(root)
 frame_input.pack(padx=10, pady=5, fill="x")
 
-tk.Label(frame_input, text="ディレクトリ:").pack(side="left")
+tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").pack(side="left")
 tk.Entry(frame_input, textvariable=root_dir_var, width=40).pack(side="left", padx=5)
 tk.Button(frame_input, text="参照", command=choose_directory).pack(side="left")
 
