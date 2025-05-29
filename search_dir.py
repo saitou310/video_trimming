@@ -185,33 +185,16 @@ root_dir_var = tk.StringVar()
 
 load_history()
 
-main_frame = tk.Frame(root)
-main_frame.pack(fill="both", expand=True)
-
-canvas = tk.Canvas(main_frame)
-scrollbar = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
-scrollable_frame = tk.Frame(canvas)
-
-scrollable_frame.bind(
-    "<Configure>",
-    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-)
-canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-canvas.configure(yscrollcommand=scrollbar.set)
-
-canvas.pack(side="left", fill="both", expand=True)
-scrollbar.pack(side="right", fill="y")
-
-frame_input = tk.Frame(scrollable_frame)
+frame_input = tk.Frame(root)
 frame_input.pack(padx=10, pady=5, fill="x")
 
-frame_search = tk.Frame(scrollable_frame)
+frame_search = tk.Frame(root)
 frame_search.pack(padx=10, pady=5, fill="x")
 
-frame_result = tk.Frame(scrollable_frame)
+frame_result = tk.Frame(root)
 frame_result.pack(padx=10, pady=10, fill="both", expand=True)
 
-frame_delete = tk.Frame(scrollable_frame)
+frame_delete = tk.Frame(root)
 frame_delete.pack(padx=10, pady=5, fill="x")
 
 tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").pack(side="left")
@@ -234,8 +217,16 @@ value_entry.pack(side="left", fill="x", expand=True, padx=5)
 tk.Button(frame_search, text="検索", command=run_search).pack(side="left", padx=10)
 
 tk.Label(frame_result, text="一致したディレクトリ:").pack(anchor="w")
-result_list = tk.Listbox(frame_result, height=15, selectmode="extended")
-result_list.pack(fill="both", expand=True)
+
+result_frame = tk.Frame(frame_result)
+result_frame.pack(fill="both", expand=True)
+
+result_scrollbar = tk.Scrollbar(result_frame, orient="vertical")
+result_list = tk.Listbox(result_frame, height=15, selectmode="extended", yscrollcommand=result_scrollbar.set)
+result_scrollbar.config(command=result_list.yview)
+
+result_list.pack(side="left", fill="both", expand=True)
+result_scrollbar.pack(side="right", fill="y")
 
 tk.Button(frame_delete, text="選択したディレクトリを削除", command=delete_selected_dirs).pack(side="right")
 
