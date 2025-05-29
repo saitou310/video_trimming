@@ -56,14 +56,14 @@ def load_json_with_cache(json_path: Path) -> Optional[Tuple[dict, str]]:
         return None
 
 def search_in_json(json_path: Path, key_pattern: str, value_pattern: str) -> bool:
-    if not key_pattern and not value_pattern:
-        return False  # 空条件なら検索不要
-
     result = load_json_with_cache(json_path)
     if not result:
         return False
 
     data, json_text = result
+
+    if not key_pattern and not value_pattern:
+        return True  # 条件なしなら全て一致とみなす
 
     if not key_pattern and value_pattern:
         return match_with_wildcard(json_text, value_pattern)
@@ -71,6 +71,9 @@ def search_in_json(json_path: Path, key_pattern: str, value_pattern: str) -> boo
     return search_key_value(data, key_pattern, value_pattern)
 
 def is_matching_dir(subdir: Path, key: str, value: str, filename: str) -> Optional[str]:
+    if not filename:
+        return str(subdir.resolve())  # ファイル名が指定されていない場合は全一致扱い
+
     json_file = subdir / filename
     if json_file.is_file():
         if search_in_json(json_file, key, value):
@@ -103,9 +106,6 @@ def run_search():
 
     if not root_pattern:
         messagebox.showerror("エラー", "ディレクトリパターンを入力してください。")
-        return
-    if not filename:
-        messagebox.showerror("エラー", "JSONファイル名を入力してください。")
         return
 
     update_history("root_dir", root_pattern, root_dir_entry)
@@ -145,7 +145,7 @@ def load_state():
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 state = json.load(f)
                 root_dir_var.set(state.get("root_dir", ""))
-                filename_entry.set(state.get("filename", "config.json"))
+                filename_entry.set(state.get("filename", ""))
                 key_entry.set(state.get("key", ""))
                 value_entry.set(state.get("value", ""))
         except Exception:
