@@ -36,6 +36,9 @@ def search_key_value(data, key_pattern: str, value_pattern: str) -> bool:
 
 def load_json_with_cache(json_path: Path) -> Optional[Tuple[dict, str]]:
     try:
+        if not json_path.exists():
+            return None  # キャッシュがあってもファイルが存在しなければ無効
+
         stat = json_path.stat()
         mtime = stat.st_mtime
         path_str = str(json_path)
@@ -143,6 +146,10 @@ def open_selected_dir(event):
         except Exception as e:
             messagebox.showerror("エクスプローラーエラー", f"{selected} を開けませんでした: {e}")
 
+def clear_cache():
+    json_cache.clear()
+    messagebox.showinfo("キャッシュ", "キャッシュをクリアしました。")
+
 def load_state():
     if Path(CONFIG_FILE).exists():
         try:
@@ -203,6 +210,12 @@ result_label_var = tk.StringVar()
 result_label_var.set("一致したディレクトリ:")
 
 load_history()
+
+menubar = tk.Menu(root)
+option_menu = tk.Menu(menubar, tearoff=0)
+option_menu.add_command(label="キャッシュをクリア", command=clear_cache)
+menubar.add_cascade(label="オプション", menu=option_menu)
+root.config(menu=menubar)
 
 frame_input = tk.Frame(root)
 frame_input.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
