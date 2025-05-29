@@ -180,54 +180,55 @@ def update_history(key: str, value: str, combobox: ttk.Combobox):
 root = tk.Tk()
 root.title("JSONディレクトリ検索ツール")
 root.geometry("800x500")
+root.grid_rowconfigure(2, weight=1)
+root.grid_columnconfigure(0, weight=1)
 
 root_dir_var = tk.StringVar()
-
 load_history()
 
 frame_input = tk.Frame(root)
-frame_input.pack(padx=10, pady=5, fill="x")
+frame_input.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
+frame_input.grid_columnconfigure(1, weight=1)
+
+tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").grid(row=0, column=0, sticky="w")
+root_dir_entry = ttk.Combobox(frame_input, textvariable=root_dir_var, values=history_data["root_dir"])
+root_dir_entry.grid(row=0, column=1, sticky="ew", padx=5)
+tk.Button(frame_input, text="参照", command=choose_directory).grid(row=0, column=2, padx=5)
 
 frame_search = tk.Frame(root)
-frame_search.pack(padx=10, pady=5, fill="x")
+frame_search.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
+for i in range(4):
+    frame_search.grid_columnconfigure(i, weight=1)
+
+filename_entry = ttk.Combobox(frame_search, values=history_data["filename"])
+filename_entry.grid(row=0, column=0, sticky="ew", padx=5)
+key_entry = ttk.Combobox(frame_search, values=history_data["key"])
+key_entry.grid(row=0, column=1, sticky="ew", padx=5)
+value_entry = ttk.Combobox(frame_search, values=history_data["value"])
+value_entry.grid(row=0, column=2, sticky="ew", padx=5)
+tk.Button(frame_search, text="検索", command=run_search).grid(row=0, column=3, padx=5)
 
 frame_result = tk.Frame(root)
-frame_result.pack(padx=10, pady=10, fill="both", expand=True)
+frame_result.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
+frame_result.grid_rowconfigure(1, weight=1)
+frame_result.grid_columnconfigure(0, weight=1)
 
-frame_delete = tk.Frame(root)
-frame_delete.pack(padx=10, pady=5, fill="x")
-
-tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").pack(side="left")
-root_dir_entry = ttk.Combobox(frame_input, textvariable=root_dir_var, values=history_data["root_dir"])
-root_dir_entry.pack(side="left", fill="x", expand=True, padx=5)
-tk.Button(frame_input, text="参照", command=choose_directory).pack(side="left")
-
-tk.Label(frame_search, text="ファイル名:").pack(side="left")
-filename_entry = ttk.Combobox(frame_search, values=history_data["filename"])
-filename_entry.pack(side="left", fill="x", expand=True, padx=5)
-
-tk.Label(frame_search, text="キー:").pack(side="left")
-key_entry = ttk.Combobox(frame_search, values=history_data["key"])
-key_entry.pack(side="left", fill="x", expand=True, padx=5)
-
-tk.Label(frame_search, text="値:").pack(side="left")
-value_entry = ttk.Combobox(frame_search, values=history_data["value"])
-value_entry.pack(side="left", fill="x", expand=True, padx=5)
-
-tk.Button(frame_search, text="検索", command=run_search).pack(side="left", padx=10)
-
-tk.Label(frame_result, text="一致したディレクトリ:").pack(anchor="w")
+tk.Label(frame_result, text="一致したディレクトリ:").grid(row=0, column=0, sticky="w")
 
 result_frame = tk.Frame(frame_result)
-result_frame.pack(fill="both", expand=True)
+result_frame.grid(row=1, column=0, sticky="nsew")
+result_frame.grid_rowconfigure(0, weight=1)
+result_frame.grid_columnconfigure(0, weight=1)
 
 result_scrollbar = tk.Scrollbar(result_frame, orient="vertical")
-result_list = tk.Listbox(result_frame, height=15, selectmode="extended", yscrollcommand=result_scrollbar.set)
+result_list = tk.Listbox(result_frame, selectmode="extended", yscrollcommand=result_scrollbar.set)
 result_scrollbar.config(command=result_list.yview)
 
-result_list.pack(side="left", fill="both", expand=True)
-result_scrollbar.pack(side="right", fill="y")
+result_list.grid(row=0, column=0, sticky="nsew")
+result_scrollbar.grid(row=0, column=1, sticky="ns")
 
+frame_delete = tk.Frame(root)
+frame_delete.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
 tk.Button(frame_delete, text="選択したディレクトリを削除", command=delete_selected_dirs).pack(side="right")
 
 load_state()
