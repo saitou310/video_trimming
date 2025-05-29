@@ -6,6 +6,7 @@ import shutil
 import glob
 import concurrent.futures
 import re
+import subprocess
 from typing import Optional, Tuple
 
 CONFIG_FILE = "search_config.json"
@@ -107,10 +108,16 @@ def run_search():
     update_history("key", key, key_entry)
     update_history("value", value, value_entry)
 
-    matched = find_matching_dirs(root_pattern, key, value, filename)
     result_list.delete(0, tk.END)
+    result_label_var.set("検索中...")
+    root.update_idletasks()
+
+    matched = find_matching_dirs(root_pattern, key, value, filename)
+
     for d in matched:
         result_list.insert(tk.END, d)
+
+    result_label_var.set(f"一致したディレクトリ: {len(matched)} 件")
 
 def delete_selected_dirs():
     selected = result_list.curselection()
@@ -127,6 +134,14 @@ def delete_selected_dirs():
             except Exception as e:
                 messagebox.showerror("削除エラー", f"{d} の削除に失敗しました: {e}")
         run_search()
+
+def open_selected_dir(event):
+    if result_list.curselection():
+        selected = result_list.get(result_list.curselection()[0])
+        try:
+            subprocess.Popen(['explorer', selected])
+        except Exception as e:
+            messagebox.showerror("エクスプローラーエラー", f"{selected} を開けませんでした: {e}")
 
 def load_state():
     if Path(CONFIG_FILE).exists():
@@ -184,6 +199,9 @@ root.grid_rowconfigure(2, weight=1)
 root.grid_columnconfigure(0, weight=1)
 
 root_dir_var = tk.StringVar()
+result_label_var = tk.StringVar()
+result_label_var.set("一致したディレクトリ:")
+
 load_history()
 
 frame_input = tk.Frame(root)
@@ -213,7 +231,7 @@ frame_result.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
 frame_result.grid_rowconfigure(1, weight=1)
 frame_result.grid_columnconfigure(0, weight=1)
 
-tk.Label(frame_result, text="一致したディレクトリ:").grid(row=0, column=0, sticky="w")
+tk.Label(frame_result, textvariable=result_label_var).grid(row=0, column=0, sticky="w")
 
 result_frame = tk.Frame(frame_result)
 result_frame.grid(row=1, column=0, sticky="nsew")
@@ -222,6 +240,7 @@ result_frame.grid_columnconfigure(0, weight=1)
 
 result_scrollbar = tk.Scrollbar(result_frame, orient="vertical")
 result_list = tk.Listbox(result_frame, selectmode="extended", yscrollcommand=result_scrollbar.set)
+result_list.bind("<Double-Button-1>", open_selected_dir)
 result_scrollbar.config(command=result_list.yview)
 
 result_list.grid(row=0, column=0, sticky="nsew")
