@@ -102,10 +102,10 @@ def run_search():
         messagebox.showerror("エラー", "JSONファイル名を入力してください。")
         return
 
-    update_history("root_dir", root_pattern)
-    update_history("filename", filename)
-    update_history("key", key)
-    update_history("value", value)
+    update_history("root_dir", root_pattern, root_dir_entry)
+    update_history("filename", filename, filename_entry)
+    update_history("key", key, key_entry)
+    update_history("value", value, value_entry)
 
     matched = find_matching_dirs(root_pattern, key, value, filename)
     result_list.delete(0, tk.END)
@@ -169,10 +169,12 @@ def save_history():
     except Exception:
         pass
 
-def update_history(key: str, value: str):
+def update_history(key: str, value: str, combobox: ttk.Combobox):
     if value and value not in history_data[key]:
         history_data[key].insert(0, value)
         history_data[key] = history_data[key][:10]
+        combobox["values"] = history_data[key]
+        save_history()
 
 # --- GUI構築 ---
 root = tk.Tk()
@@ -181,49 +183,62 @@ root.geometry("800x500")
 
 root_dir_var = tk.StringVar()
 
-# 履歴ロード
 load_history()
 
-# 入力フィールド
-frame_input = tk.Frame(root)
+main_frame = tk.Frame(root)
+main_frame.pack(fill="both", expand=True)
+
+canvas = tk.Canvas(main_frame)
+scrollbar = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+scrollable_frame = tk.Frame(canvas)
+
+scrollable_frame.bind(
+    "<Configure>",
+    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+)
+canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+canvas.configure(yscrollcommand=scrollbar.set)
+
+canvas.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
+
+frame_input = tk.Frame(scrollable_frame)
 frame_input.pack(padx=10, pady=5, fill="x")
 
-tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").pack(side="left")
-root_dir_entry = ttk.Combobox(frame_input, textvariable=root_dir_var, values=history_data["root_dir"], width=50)
-root_dir_entry.pack(side="left", padx=5)
-tk.Button(frame_input, text="参照", command=choose_directory).pack(side="left")
-
-frame_search = tk.Frame(root)
+frame_search = tk.Frame(scrollable_frame)
 frame_search.pack(padx=10, pady=5, fill="x")
 
+frame_result = tk.Frame(scrollable_frame)
+frame_result.pack(padx=10, pady=10, fill="both", expand=True)
+
+frame_delete = tk.Frame(scrollable_frame)
+frame_delete.pack(padx=10, pady=5, fill="x")
+
+tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").pack(side="left")
+root_dir_entry = ttk.Combobox(frame_input, textvariable=root_dir_var, values=history_data["root_dir"])
+root_dir_entry.pack(side="left", fill="x", expand=True, padx=5)
+tk.Button(frame_input, text="参照", command=choose_directory).pack(side="left")
+
 tk.Label(frame_search, text="ファイル名:").pack(side="left")
-filename_entry = ttk.Combobox(frame_search, width=20, values=history_data["filename"])
-filename_entry.pack(side="left", padx=5)
+filename_entry = ttk.Combobox(frame_search, values=history_data["filename"])
+filename_entry.pack(side="left", fill="x", expand=True, padx=5)
 
 tk.Label(frame_search, text="キー:").pack(side="left")
-key_entry = ttk.Combobox(frame_search, width=15, values=history_data["key"])
-key_entry.pack(side="left", padx=5)
+key_entry = ttk.Combobox(frame_search, values=history_data["key"])
+key_entry.pack(side="left", fill="x", expand=True, padx=5)
 
 tk.Label(frame_search, text="値:").pack(side="left")
-value_entry = ttk.Combobox(frame_search, width=15, values=history_data["value"])
-value_entry.pack(side="left", padx=5)
+value_entry = ttk.Combobox(frame_search, values=history_data["value"])
+value_entry.pack(side="left", fill="x", expand=True, padx=5)
 
 tk.Button(frame_search, text="検索", command=run_search).pack(side="left", padx=10)
-
-# 結果表示
-frame_result = tk.Frame(root)
-frame_result.pack(padx=10, pady=10, fill="both", expand=True)
 
 tk.Label(frame_result, text="一致したディレクトリ:").pack(anchor="w")
 result_list = tk.Listbox(frame_result, height=15, selectmode="extended")
 result_list.pack(fill="both", expand=True)
 
-# 削除ボタン
-frame_delete = tk.Frame(root)
-frame_delete.pack(padx=10, pady=5, fill="x")
 tk.Button(frame_delete, text="選択したディレクトリを削除", command=delete_selected_dirs).pack(side="right")
 
-# 終了処理
 load_state()
 def on_close():
     save_state()
