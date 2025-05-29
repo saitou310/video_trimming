@@ -6,8 +6,8 @@ import shutil
 import glob
 import concurrent.futures
 import re
-import subprocess
 from typing import Optional, Tuple
+import os
 
 CONFIG_FILE = "search_config.json"
 HISTORY_FILE = "input_history.json"
@@ -35,10 +35,9 @@ def search_key_value(data, key_pattern: str, value_pattern: str) -> bool:
     return False
 
 def load_json_with_cache(json_path: Path) -> Optional[Tuple[dict, str]]:
+    if not json_path.exists():
+        return None
     try:
-        if not json_path.exists():
-            return None  # キャッシュがあってもファイルが存在しなければ無効
-
         stat = json_path.stat()
         mtime = stat.st_mtime
         path_str = str(json_path)
@@ -57,6 +56,9 @@ def load_json_with_cache(json_path: Path) -> Optional[Tuple[dict, str]]:
         return None
 
 def search_in_json(json_path: Path, key_pattern: str, value_pattern: str) -> bool:
+    if not key_pattern and not value_pattern:
+        return False  # 空条件なら検索不要
+
     result = load_json_with_cache(json_path)
     if not result:
         return False
@@ -111,12 +113,11 @@ def run_search():
     update_history("key", key, key_entry)
     update_history("value", value, value_entry)
 
-    result_list.delete(0, tk.END)
     result_label_var.set("検索中...")
     root.update_idletasks()
 
     matched = find_matching_dirs(root_pattern, key, value, filename)
-
+    result_list.delete(0, tk.END)
     for d in matched:
         result_list.insert(tk.END, d)
 
@@ -137,18 +138,6 @@ def delete_selected_dirs():
             except Exception as e:
                 messagebox.showerror("削除エラー", f"{d} の削除に失敗しました: {e}")
         run_search()
-
-def open_selected_dir(event):
-    if result_list.curselection():
-        selected = result_list.get(result_list.curselection()[0])
-        try:
-            subprocess.Popen(['explorer', selected])
-        except Exception as e:
-            messagebox.showerror("エクスプローラーエラー", f"{selected} を開けませんでした: {e}")
-
-def clear_cache():
-    json_cache.clear()
-    messagebox.showinfo("キャッシュ", "キャッシュをクリアしました。")
 
 def load_state():
     if Path(CONFIG_FILE).exists():
@@ -202,72 +191,62 @@ def update_history(key: str, value: str, combobox: ttk.Combobox):
 root = tk.Tk()
 root.title("JSONディレクトリ検索ツール")
 root.geometry("800x500")
-root.grid_rowconfigure(2, weight=1)
-root.grid_columnconfigure(0, weight=1)
 
 root_dir_var = tk.StringVar()
-result_label_var = tk.StringVar()
-result_label_var.set("一致したディレクトリ:")
+result_label_var = tk.StringVar(value="一致したディレクトリ:")
 
 load_history()
 
-menubar = tk.Menu(root)
-option_menu = tk.Menu(menubar, tearoff=0)
-option_menu.add_command(label="キャッシュをクリア", command=clear_cache)
-menubar.add_cascade(label="オプション", menu=option_menu)
-root.config(menu=menubar)
-
 frame_input = tk.Frame(root)
-frame_input.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
-frame_input.grid_columnconfigure(1, weight=1)
-
-tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").grid(row=0, column=0, sticky="w")
-root_dir_entry = ttk.Combobox(frame_input, textvariable=root_dir_var, values=history_data["root_dir"])
-root_dir_entry.grid(row=0, column=1, sticky="ew", padx=5)
-tk.Button(frame_input, text="参照", command=choose_directory).grid(row=0, column=2, padx=5)
+frame_input.pack(padx=10, pady=5, fill="x")
 
 frame_search = tk.Frame(root)
-frame_search.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
-for i in range(4):
-    frame_search.grid_columnconfigure(i, weight=1)
-
-filename_entry = ttk.Combobox(frame_search, values=history_data["filename"])
-filename_entry.grid(row=0, column=0, sticky="ew", padx=5)
-key_entry = ttk.Combobox(frame_search, values=history_data["key"])
-key_entry.grid(row=0, column=1, sticky="ew", padx=5)
-value_entry = ttk.Combobox(frame_search, values=history_data["value"])
-value_entry.grid(row=0, column=2, sticky="ew", padx=5)
-tk.Button(frame_search, text="検索", command=run_search).grid(row=0, column=3, padx=5)
+frame_search.pack(padx=10, pady=5, fill="x")
 
 frame_result = tk.Frame(root)
-frame_result.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
-frame_result.grid_rowconfigure(1, weight=1)
-frame_result.grid_columnconfigure(0, weight=1)
-
-tk.Label(frame_result, textvariable=result_label_var).grid(row=0, column=0, sticky="w")
-
-result_frame = tk.Frame(frame_result)
-result_frame.grid(row=1, column=0, sticky="nsew")
-result_frame.grid_rowconfigure(0, weight=1)
-result_frame.grid_columnconfigure(0, weight=1)
-
-result_scrollbar = tk.Scrollbar(result_frame, orient="vertical")
-result_list = tk.Listbox(result_frame, selectmode="extended", yscrollcommand=result_scrollbar.set)
-result_list.bind("<Double-Button-1>", open_selected_dir)
-result_scrollbar.config(command=result_list.yview)
-
-result_list.grid(row=0, column=0, sticky="nsew")
-result_scrollbar.grid(row=0, column=1, sticky="ns")
+frame_result.pack(padx=10, pady=10, fill="both", expand=True)
 
 frame_delete = tk.Frame(root)
-frame_delete.grid(row=3, column=0, sticky="ew", padx=10, pady=5)
+frame_delete.pack(padx=10, pady=5, fill="x")
+
+tk.Label(frame_input, text="ディレクトリ（ワイルドカード可）:").pack(side="left")
+root_dir_entry = ttk.Combobox(frame_input, textvariable=root_dir_var, values=history_data["root_dir"])
+root_dir_entry.pack(side="left", fill="x", expand=True, padx=5)
+tk.Button(frame_input, text="参照", command=choose_directory).pack(side="left")
+
+tk.Label(frame_search, text="ファイル名:").pack(side="left")
+filename_entry = ttk.Combobox(frame_search, values=history_data["filename"])
+filename_entry.pack(side="left", fill="x", expand=True, padx=5)
+
+tk.Label(frame_search, text="キー:").pack(side="left")
+key_entry = ttk.Combobox(frame_search, values=history_data["key"])
+key_entry.pack(side="left", fill="x", expand=True, padx=5)
+
+tk.Label(frame_search, text="値:").pack(side="left")
+value_entry = ttk.Combobox(frame_search, values=history_data["value"])
+value_entry.pack(side="left", fill="x", expand=True, padx=5)
+
+tk.Button(frame_search, text="検索", command=run_search).pack(side="left", padx=10)
+
+tk.Label(frame_result, textvariable=result_label_var).pack(anchor="w")
+
+result_frame = tk.Frame(frame_result)
+result_frame.pack(fill="both", expand=True)
+
+result_scrollbar = tk.Scrollbar(result_frame, orient="vertical")
+result_list = tk.Listbox(result_frame, height=15, selectmode="extended", yscrollcommand=result_scrollbar.set)
+result_scrollbar.config(command=result_list.yview)
+
+result_list.pack(side="left", fill="both", expand=True)
+result_scrollbar.pack(side="right", fill="y")
+
 tk.Button(frame_delete, text="選択したディレクトリを削除", command=delete_selected_dirs).pack(side="right")
 
-load_state()
 def on_close():
     save_state()
     save_history()
     root.destroy()
 
 root.protocol("WM_DELETE_WINDOW", on_close)
+load_state()
 root.mainloop()
