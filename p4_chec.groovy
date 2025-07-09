@@ -4,34 +4,46 @@ pipeline {
     environment {
         P4_CRED_ID = 'your-p4-credential-id'
         P4_STREAM = '//depot/stream/main'
-        BASELINE_CL = '12345'  // ← ここを起点の changelist に設定
+        BASELINE_FILE = 'baseline_cl.txt'
         SLACK_CHANNEL = '#your-channel'
+        P4PORT = 'perforce:1666'
+        P4USER = 'jenkins'
+        // 必要なら P4CLIENT も追加で定義
     }
 
     triggers {
-        pollSCM('H/5 * * * *')  // 5分おきにチェック
+        pollSCM('H/5 * * * *')
     }
 
     stages {
-        stage('Check for New Changes') {
+        stage('Check for Changes') {
             steps {
                 script {
-                    // 指定チェンジリストより新しい変更を最大10件取得
-                    def output = sh(
-                        script: "p4 -ztag changes -m10 ${env.P4_STREAM}@${env.BASELINE_CL},now",
+                    def baselineCL = '0'
+                    if (fileExists(env.BASELINE_FILE)) {
+                        baselineCL = readFile(env.BASELINE_FILE).trim()
+                        echo "Previous CL: ${baselineCL}"
+                    }
+
+                    // 最新CL取得（p4 CLI）
+                    def latestCL = bat(
+                        script: "p4 -p ${env.P4PORT} -u ${env.P4USER} changes -m1 ${env.P4_STREAM}",
                         returnStdout: true
                     ).trim()
 
-                    def newCLs = (output =~ /change (\d+)/).collect { it[1] }
+                    def match = latestCL =~ /Change\s+(\d+)/
+                    if (!match) {
+                        error "Could not extract latest changelist number"
+                    }
 
-                    if (newCLs.size() > 0) {
-                        echo "New changelists found since ${env.BASELINE_CL}: ${newCLs.join(', ')}"
+                    latestCL = match[0][1]
+                    echo "Latest CL: ${latestCL}"
 
-                        // 最新CLの詳細を取得して通知
-                        def latestCL = newCLs[0]
+                    if (latestCL.toInteger() > baselineCL.toInteger()) {
+                        echo "New changes detected since CL ${baselineCL}"
 
-                        def desc = sh(
-                            script: "p4 describe -s ${latestCL}",
+                        def desc = bat(
+                            script: "p4 -p ${env.P4PORT} -u ${env.P4USER} describe -s ${latestCL}",
                             returnStdout: true
                         ).trim()
 
@@ -39,11 +51,13 @@ pipeline {
                             channel: env.SLACK_CHANNEL,
                             message: "*New Perforce Submit Detected!*\n" +
                                      "Stream: `${env.P4_STREAM}`\n" +
-                                     "Changes since ${env.BASELINE_CL}: `${newCLs.join(', ')}`\n" +
-                                     "Latest change:\n```" + desc + "```"
+                                     "Change: `${latestCL}`\n" +
+                                     "```" + desc + "```"
                         )
+
+                        writeFile file: env.BASELINE_FILE, text: latestCL
                     } else {
-                        echo "No changes since CL ${env.BASELINE_CL}"
+                        echo "No new changelists."
                     }
                 }
             }
