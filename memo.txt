@@ -1,6 +1,29 @@
+@NonCPS
+def toRunWrapper(run) {
+    return org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper.fromRun(run)
+}
 
-                    def lastSuccessBuild = currentBuild.rawBuild.getPreviousSuccessfulBuild()
-                    if (lastSuccessBuild) {
-                        // RunWrapperに変換
-                        def lastSuccessRun = org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper
-                                .fromRun(lastSuccessBuild)
+def useRunWrapper(RunWrapper run) {
+    echo "ビルド番号: ${run.number}"
+    echo "ビルド結果: ${run.result}"
+    echo "URL: ${run.absoluteUrl}"
+}
+
+pipeline {
+    agent any
+    stages {
+        stage('Convert Run to RunWrapper') {
+            steps {
+                script {
+                    def prev = currentBuild.rawBuild.getPreviousSuccessfulBuild()
+                    if (prev) {
+                        def wrapper = toRunWrapper(prev)
+                        useRunWrapper(wrapper)
+                    } else {
+                        echo "前回の成功ビルドが見つかりませんでした"
+                    }
+                }
+            }
+        }
+    }
+}
