@@ -1,0 +1,6 @@
+
+                    def lastSuccessBuild = currentBuild.rawBuild.getPreviousSuccessfulBuild()
+                    if (lastSuccessBuild) {
+                        // RunWrapperに変換
+                        def lastSuccessRun = org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper
+                                .fromRun(lastSuccessBuild)
